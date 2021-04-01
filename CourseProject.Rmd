@@ -33,13 +33,35 @@ glimpse(training)
 A quick look of the data reveals the following:
 
 * The outcome variable which we are interested in is called `classe`.
-* There are 159 variables for us to use as predictors. However, some of the variables contain `NA` and `#DIV/0!` and thus we would have to do some cleanup. We will exclude columns with more than 50% missing values.
+* There are 159 variables for us to use as predictors. However, some of the variables contain `NA` and `#DIV/0!` and thus we would have to do some cleanup. In addition, we will use the `nearZeroVar()` function to remove the variables with near zero variance. 
 * Some variables also have descriptive fields e.g. `X1`, `user_name`, `raw_timestamp_part_1`, `raw_timestamp_part_2`, `cvtd_timestamp`, `new_window`, `num_window` and thus we would have to remove them.
 ```{r Clean Up}
 training_cleaned<-training %>%
-    select(!X1:num_window) %>% # Remove descriptive variables
-      mutate(across(everything(), ~replace_na(.x, 0)), 
-             across(everything(), ~gsub("#DIV/0!", 0, .x))) %>% # Replace NAs and #DIV/0! with 0.
-    select(across(where))
-    
+    select(!X1:num_window) %>% 
+      mutate(across(everything(), ~replace_na(.x, 0)), # Remove descriptive variables
+             across(everything(), ~gsub("#DIV/0!", 0, .x))) # Replace NAs and #DIV/0! with 0.
+
+training_cleaned<-training_cleaned[, -nearZeroVar(training_cleaned)] #Remove variables which have near zero variance. 
+training_cleaned<-training_cleaned %>%
+    mutate(across(1:52, as.numeric))
+glimpse(training_cleaned)
 ```
+We are now left with 52 variables to use as predictors. We will now create training and validation test sets. 
+```{r Create Training and Validation Test Sets}
+set.seed(4896)
+training_set<-createDataPartition(training_cleaned$classe, p=0.75, list=FALSE)
+train_set<-training_cleaned[training_set,]
+validate_set<-training_cleaned[-training_set,]
+```
+# Model Fitting
+Here, we will use the Random Forest model for classification. 
+```{r Model Fitting, message=FALSE, results='hide', warning=FALSE}
+rfFit<-train(classe~., data=train_set, method="rf")
+```
+## Training set Accuracy
+```{r Training set Accuracy}
+rfPred<-predict(rfFit, train_set)
+rfMat<-confusionMatrix(rfPred, train_set$classe)
+rfMat$overall
+```
+

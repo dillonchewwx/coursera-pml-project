@@ -1,0 +1,45 @@
+---
+title: "Course Project - Modeling Data in the Tidyverse"
+author: "dillonchewwx"
+date: "15/03/2021"
+output:
+    prettydoc::html_pretty:
+        theme: hpstr
+        highlight: github
+---
+# Overview
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+
+In this project, the [Weight Lifting Exercise Data Set](http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har) would be used to predict the manner in which an individual did the exercise. The data comes from accelerometers on the belt, forearm, arm, and dumbbell of 6 participants where they were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
+
+The datasets can be downloaded from here:
+
+* [Training Data](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv)
+* [Testing Data](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv)
+
+# Load Libraries and Import Data
+```{r Setup, message=FALSE, results='hide', warning=FALSE}
+library(caret) # For ML
+library(tidyverse) # For manipulating data
+
+training<-read_csv("Data/pml-training.csv")
+testing<-read_csv("Data/pml-testing.csv")
+```
+# Data Inspection
+```{r Inspect Data}
+glimpse(training)
+```
+A quick look of the data reveals the following:
+
+* The outcome variable which we are interested in is called `classe`.
+* There are 159 variables for us to use as predictors. However, some of the variables contain `NA` and `#DIV/0!` and thus we would have to do some cleanup. We will exclude columns with more than 50% missing values.
+* Some variables also have descriptive fields e.g. `X1`, `user_name`, `raw_timestamp_part_1`, `raw_timestamp_part_2`, `cvtd_timestamp`, `new_window`, `num_window` and thus we would have to remove them.
+```{r Clean Up}
+training_cleaned<-training %>%
+    select(!X1:num_window) %>% # Remove descriptive variables
+      mutate(across(everything(), ~replace_na(.x, 0)), 
+             across(everything(), ~gsub("#DIV/0!", 0, .x))) %>% # Replace NAs and #DIV/0! with 0.
+    select(across(where))
+    
+```

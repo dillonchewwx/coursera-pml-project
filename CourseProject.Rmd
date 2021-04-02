@@ -43,25 +43,51 @@ training_cleaned<-training %>%
 
 training_cleaned<-training_cleaned[, -nearZeroVar(training_cleaned)] #Remove variables which have near zero variance. 
 training_cleaned<-training_cleaned %>%
-    mutate(across(1:52, as.numeric))
+  mutate(across(1:52, as.numeric)) %>%
+  mutate(classe=factor(classe))
+  
 glimpse(training_cleaned)
 ```
 We are now left with 52 variables to use as predictors. We will now create training and validation test sets. 
-```{r Create Training and Validation Test Sets}
+```{r Create Training and Validation Test Sets, warning=FALSE}
 set.seed(4896)
-training_set<-createDataPartition(training_cleaned$classe, p=0.75, list=FALSE)
-train_set<-training_cleaned[training_set,]
-validate_set<-training_cleaned[-training_set,]
+inTrain<-createDataPartition(training_cleaned$classe, p=0.75, list=FALSE)
+train_set<-training_cleaned[inTrain,]
+validate_set<-training_cleaned[-inTrain,]
 ```
 # Model Fitting
-Here, we will use the Random Forest model for classification. 
+Here, we will use the Random Forest model for classification with 5-fold cross validation. To speed things up, we will carry out parallel processing with the `doParallel` package. 
 ```{r Model Fitting, message=FALSE, results='hide', warning=FALSE}
-rfFit<-train(classe~., data=train_set, method="rf")
+library(doParallel)
+cl<-makePSOCKcluster(0.75*detectCores())
+registerDoParallel(cl)
+rfCrossVal<-trainControl(method="cv", 5)
+rfFit<-train(classe~., data=train_set, method="rf", trControl=rfCrossVal)
+stopCluster(cl)
+rfFit
 ```
-## Training set Accuracy
+## Test the Accuracy on the Validation Set
 ```{r Training set Accuracy}
-rfPred<-predict(rfFit, train_set)
-rfMat<-confusionMatrix(rfPred, train_set$classe)
+rfPred<-predict(rfFit, validate_set)
+rfMat<-confusionMatrix(rfPred, validate_set$classe)
 rfMat$overall
+```
+The accuracy on the validation data set is 99.55% - our model performs pretty good! 
+
+# Test Set Prediction
+We shall first clean up the test data set before carrying out the prediction.
+```{r Prediction}
+testing_cleaned<-testing %>%
+    select(!X1:num_window) %>% 
+      mutate(across(everything(), ~replace_na(.x, 0)), # Remove descriptive variables
+             across(everything(), ~gsub("#DIV/0!", 0, .x))) # Replace NAs and #DIV/0! with 0.
+
+testing_cleaned<-testing_cleaned[, -nearZeroVar(testing_cleaned)] #Remove variables which have near zero variance. 
+testing_cleaned<-testing_cleaned %>%
+  select(!problem_id) %>%
+  mutate(across(1:52, as.numeric))
+
+testPred<-predict(rfFit, testing_cleaned)
+testPred
 ```
 

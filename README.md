@@ -16,4 +16,4 @@ The test data are available here:
 
 ## Final Report
 
-The report for this project can be found [here](https://dillonchewwx.github.io/coursera-pml-project/CourseProject.html)
+The report for this project can be found [here](https://dillonchewwx.github.io/coursera-pml-project/CourseProject.html).
